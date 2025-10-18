@@ -1,0 +1,42 @@
+<div></div>
+<p></p>
+<h2 style='position:fixed;display:block;right:10px;top:0px;'></h2>
+<style>
+    img{
+        display: inline-block;
+        width: 50px;
+        z-index: 0;
+		position:relative;
+    }
+    [selected]{
+        outline-width: 5px;
+        outline-style: solid;
+        outline-color: red;
+        z-index: 5;
+    }
+	[flipped]{
+		transform: scale(-1, 1);
+	}
+    *{
+        image-rendering: pixelated;
+    }
+</style>
+<script src="jquery-1.7.min.js"></script>
+<script src="hookConsole.js"></script>
+<script src="Definitions.js"></script>
+<script>
+
+	curHouse.map[8-1][2] = new Room({position:[1,2], rotation:0,blueprint:new BluePrint({
+	"name" : "Other",
+	"color" : COLOR.RED, 
+	"rarity" : -1, 
+	"cost" : -1, 
+	"properties" : {}, 
+	"doorways" : "L", 
+	"itemProbabilities" : {}, 
+	"interactables" : {}
+	})})
+
+    setInterval(refresh, 1000);
+    refresh()
+</script>
