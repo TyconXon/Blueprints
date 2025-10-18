@@ -9,6 +9,29 @@ const DOORWAYS = {
 	 LEFTFORWARD : "LF",
 	 FOURWAY : "4"
 }
+
+const NICEDOORWAYS = {}
+Object.entries(DOORWAYS).forEach(element => {
+	NICEDOORWAYS[element[1]] = element[0]
+});
+
+const rotation = { //Orientation of the door that created this room
+	NORTH : 180,
+	SOUTH : 0,
+	EAST  : 270,
+	WEST  : 90
+}
+
+const GlobalDirections = {
+	 "D" : [rotation.SOUTH],
+	 "F" : [rotation.SOUTH, rotation.NORTH],
+	 "R" : [rotation.SOUTH, rotation.EAST],
+	 "L" : [rotation.SOUTH, rotation.WEST],
+	 "LR" : [rotation.SOUTH, rotation.EAST, rotation.WEST],
+	 "RF" : [rotation.SOUTH, rotation.EAST, rotation.NORTH],
+	 "LF": [rotation.SOUTH, rotation.WEST, rotation.NORTH],
+	 "4" : [rotation.SOUTH, rotation.EAST, rotation.WEST, rotation.NORTH]
+}
 const COLOR = {
 	BLUE : "blue",
 	RED : "red",
@@ -20,12 +43,7 @@ const COLOR = {
 	BLACK : "black"
 }
 
-const rotation = {
-	NORTH : 180,
-	SOUTH : 0,
-	EAST  : -90,
-	WEST  : 90
-}
+
 
 class House {
 	constructor(parameters) {
@@ -52,10 +70,11 @@ class House {
 			}
 		}
 		this.map.reverse()
+		console.log(this.map)
 	}
 
 	getRoom(position){
-		return (this.map[position[1]+8][position[0]]) || `undefined (${position})`;
+		return (this.map[position[1]+8][position[0]]) || `undefined`;
 	}
 	
 	createRoom(position, rotation, blueprint){
@@ -90,6 +109,7 @@ class Room {
         this.position = parameters.position
         this.rotation = parameters.rotation
         this.blueprint = parameters.blueprint
+		this.entered = false
     }
 
 	toString(){
@@ -102,6 +122,14 @@ class Room {
 		}
 
 		return `<img ${(curHouse.getRoom(PLAYER.position).position == this.position)?'selected':''} ${flipper} style="background-color:${this.blueprint.color};rotate:${this.rotation}deg;" src="Directions/${(actualImage || `none`)}.png">`
+	}
+
+	getGlobalExits(){
+		let returnValue = [...GlobalDirections[this.blueprint.doorways]]
+		returnValue.forEach((element, index, arr) => {
+			arr[index] = normalizeDegree(arr[index] + this.rotation)
+		});
+		return returnValue
 	}
 }
 
@@ -118,44 +146,27 @@ const PLAYER = {
 
 	onInput : function (input) {
 		// alert(input.key)
-		let nextRoom
+		let thisRoom = curHouse.getRoom(PLAYER.position)
 		switch (input.key) {
 			
 			case "ArrowUp":
-				nextRoom = curHouse.getRoom([PLAYER.position[0], PLAYER.position[1]-1])
-				if (nextRoom.blueprint.name == undefined){
-					curHouse.createRoom([PLAYER.position[0], PLAYER.position[1]-1], 0, Object.values(FLOORPLANS)[randomIntFromInterval(0, Object.values(FLOORPLANS).length-1)])
-				}else{
-					PLAYER.position[1]--
-				}
+				PLAYER.attemptMovement([0,-1])
 				break;
 			case "ArrowDown":
-				nextRoom = curHouse.getRoom([PLAYER.position[0], PLAYER.position[1]+1])
-				if (nextRoom.blueprint.name == undefined){
-					curHouse.createRoom([PLAYER.position[0], PLAYER.position[1]+1], 180, Object.values(FLOORPLANS)[randomIntFromInterval(0, Object.values(FLOORPLANS).length-1)])
-				}else{
-					PLAYER.position[1]++
-				}
-				
-				
+				PLAYER.attemptMovement([0,1])
 				break;
 			case "ArrowLeft":
-				nextRoom = curHouse.getRoom([PLAYER.position[0]-1, PLAYER.position[1]])
-				if (nextRoom.blueprint.name == undefined){
-					curHouse.createRoom([PLAYER.position[0]-1, PLAYER.position[1]], -90, Object.values(FLOORPLANS)[randomIntFromInterval(0, Object.values(FLOORPLANS).length-1)])
-				}else{
-					PLAYER.position[0]--
-				}
-				
+				PLAYER.attemptMovement([-1,0])
 				break;
 			case "ArrowRight":
-				nextRoom = curHouse.getRoom([PLAYER.position[0]+1, PLAYER.position[1]])
-				if (nextRoom.blueprint.name == undefined){
-					curHouse.createRoom([PLAYER.position[0]+1, PLAYER.position[1]], 90, Object.values(FLOORPLANS)[randomIntFromInterval(0, Object.values(FLOORPLANS).length-1)])
-				}else{
-					PLAYER.position[0]++
-				}
-				
+				PLAYER.attemptMovement([1,0])
+				break;
+			case "Shift":
+				console.clear()
+				window.location.reload()
+				break;
+			case " ":
+				console.log(thisRoom.getGlobalExits())
 				break;
 			default:
 				// alert(curHouse.getRoom(PLAYER.position).blueprint)
@@ -174,6 +185,70 @@ const PLAYER = {
 		}
 
 		refresh()
+	},
+
+	dirToRotation : function(dir){
+		if (arreq(dir, [0,-1])){
+			return rotation.NORTH
+		}
+		if (arreq(dir, [0,1])){
+			return rotation.SOUTH
+		}
+		if (arreq(dir, [-1,0])){
+			return rotation.WEST
+		}
+		if (arreq(dir, [1,0])){
+			return rotation.EAST
+		}
+	},
+	dirToDoorRot : function(dir){
+		if (arreq(dir, [0,-1])){
+			return rotation.SOUTH
+		}
+		if (arreq(dir, [0,1])){
+			return rotation.NORTH
+		}
+		if (arreq(dir, [-1,0])){
+			return rotation.EAST
+		}
+		if (arreq(dir, [1,0])){
+			return rotation.WEST
+		}
+	},
+
+	askRoom: function(){
+		let options = [rarr(FLOORPLANS), rarr(FLOORPLANS), rarr(FLOORPLANS)]
+		let names = [...options]
+		names.forEach((element, index)=>{
+			names[index] = `${index+1} : ${element.name} (${NICEDOORWAYS[element.doorways]}) - ${element.description || "" }`
+		})
+		console.log(options)
+		
+		return options[prompt(names.join("\n"))-1]
+	},
+
+	attemptMovement : function(dir) {
+		let wishpos = [PLAYER.position[0] + dir[0], PLAYER.position[1] + dir[1]]
+		let nextRoom
+		try {
+			nextRoom = curHouse.getRoom(wishpos)
+		} catch (error) {
+			return
+		}
+		
+		let thisRoom = curHouse.getRoom(PLAYER.position)
+		//  console.log(PLAYER.dirToRotation(dir))
+		if (thisRoom.getGlobalExits().includes(PLAYER.dirToRotation(dir))){
+			if (nextRoom.blueprint.name == undefined){
+				curHouse.createRoom(wishpos, PLAYER.dirToDoorRot(dir), this.askRoom())
+			}else if (nextRoom.blueprint.name != undefined &&
+				nextRoom.getGlobalExits().includes(PLAYER.dirToDoorRot(dir))
+			){
+				PLAYER.position = wishpos
+				PLAYER.steps -= 1
+			}
+		}
+		
 	}
 }
 
@@ -208,6 +283,7 @@ const FLOORPLANS = {
 	}),
 	storeRoom :  new BluePrint({
 		"name" : "Storeroom",
+		"description" : "1 gem, 1 key, 3 coin",
 		"color" : COLOR.BLUE, 
 		"rarity" : 0, 
 		"cost" : 0, 
@@ -216,9 +292,10 @@ const FLOORPLANS = {
 		}, 
 		"doorways" : DOORWAYS.DEADEND, 
 		"itemProbabilities" : { //[prob, min, max]
-			gem : [1.00, 1, 1],
-			key : [1.00, 1, 1],
-			coin : [1.00, 3, 6]
+			gem : [0.50, 1, 2],
+			key : [0.50, 1, 2],
+			coin : [0.50, 3, 6],
+			chest : [0.10, 0, 1]
 		}, 
 		"interactables" : [
 			{
@@ -228,7 +305,7 @@ const FLOORPLANS = {
 		]
 	}),
 	passageway :  new BluePrint({
-		"name" : "passageway",
+		"name" : "Passageway",
 		"color" : COLOR.BROWN, 
 		"rarity" : 0, 
 		"cost" : 2, 
@@ -243,6 +320,7 @@ const FLOORPLANS = {
 	}),
 	drawingRoom :  new BluePrint({
 		"name" : "Drawing Room",
+		"description" : "Reroll doors",
 		"color" : COLOR.BLUE, 
 		"rarity" : 1, 
 		"cost" : 2, 
@@ -255,6 +333,7 @@ const FLOORPLANS = {
 	}),
 	pantry :  new BluePrint({
 		"name" : "Pantry",
+		"description" : "Coin and fruit",
 		"color" : COLOR.BLUE, 
 		"rarity" : 0, 
 		"cost" : 0, 
@@ -266,7 +345,8 @@ const FLOORPLANS = {
 		"interactables" : []
 	}),
 	commisary :  new BluePrint({
-		"name" : "Commisary",
+		"name" : "commissary",
+		"description" : "Spend coin",
 		"color" : COLOR.STORE, 
 		"rarity" : 0, 
 		"cost" : 1, 
@@ -282,10 +362,12 @@ const FLOORPLANS = {
 
 $("body").on("keyup", PLAYER.onInput)
 
+
 function refresh(){
 	$("div").html(curHouse.map.join("<br>").replaceAll(",",""))
 	$("p").html(curHouse.getRoom(PLAYER.position).toString())
-	$("h2").html(curHouse.getRoom(PLAYER.position).blueprint.name || "None")
+	$("h2").html( (curHouse.getRoom(PLAYER.position).blueprint.name || "None") + "<br>" +
+				  PLAYER.steps)
 }
 
 const curHouse = new House({elevatorPosition : [1,1]})
